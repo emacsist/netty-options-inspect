@@ -4,6 +4,7 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -70,15 +71,17 @@ public class NettyOptionsInspectApplication implements CommandLineRunner {
 
     }
 
+    public static final NioEventLoopGroup BOSS_GROUP = new NioEventLoopGroup(1, new DefaultThreadFactory("netty-boss"));
+    public static final NioEventLoopGroup WORK_GROUP = new NioEventLoopGroup(4, new DefaultThreadFactory("netty-worker"));
+
     @Override
     public void run(final String... args) {
         final ServerBootstrap serverBootstrap = new ServerBootstrap();
-        final EventLoopGroup master = new NioEventLoopGroup();
-        final EventLoopGroup worker = new NioEventLoopGroup();
+
         try {
             initOptions(serverBootstrap);
             serverBootstrap
-                    .group(master, worker)
+                    .group(BOSS_GROUP, WORK_GROUP)
                     .channel(NioServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<Channel>() {
                         @Override
@@ -101,8 +104,8 @@ public class NettyOptionsInspectApplication implements CommandLineRunner {
         } catch (final InterruptedException e) {
             //ignore
         } finally {
-            master.shutdownGracefully();
-            worker.shutdownGracefully();
+            BOSS_GROUP.shutdownGracefully();
+            WORK_GROUP.shutdownGracefully();
             System.out.println("stop app ok...");
         }
     }
